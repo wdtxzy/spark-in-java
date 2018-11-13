@@ -16,7 +16,7 @@ object SparkUtils {
     val endTime = ParamsUtils.getParam(taskParam, Constants.PARAM_END_DATE)
 
     val sql = "select * from " + Constants.TABLE_USER_VISIT_ACTION + " where date>= " + startTime + " and date<= " + endTime
-    val result = sqlContext.sql(sql)
+    val result =sqlContext.sql(sql)
     result.toJavaRDD
   }
 
