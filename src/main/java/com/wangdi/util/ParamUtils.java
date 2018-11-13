@@ -9,7 +9,7 @@ import com.wangdi.conf.ConfigurationManager;
  * @ Author ：wang di
  * @ Date   ：Created in 11:26 AM 2018/11/1
  */
-public class ParamsUtils {
+public class ParamUtils {
 
     //从命令行参数中提取任务id
     public static Long getTaskIdFromArgs(String[] args, String taskType) {
