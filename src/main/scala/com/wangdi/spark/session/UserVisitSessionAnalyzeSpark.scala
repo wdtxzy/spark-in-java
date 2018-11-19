@@ -64,7 +64,8 @@ object UserVisitSessionAnalyzeSpark {
     calculateAndPersistAggrStat(sessionAggrStatAccumulator.value,task.getTaskid)
     //获取top10热门品类
     val top10CategoryList = getTop10Category(task.getTaskid,sessionidToDetailRDD)
-
+    //获取top10活跃session
+    getTop10Session(sc,task.getTaskid,top10CategoryList,sessionidToDetailRDD)
     //关闭spark上下文
     sc.close()
   }
@@ -764,7 +765,82 @@ object UserVisitSessionAnalyzeSpark {
       result.iterator
     }}
 
-    
+    //获得到top10热门品类，被各个session点击的次数
+    val top10CategorySessionCountRDD = top10CategoryIdRDD.
+      join(categoryidTosessionCountRDD).map(x=>(x._1,x._2._2))
+
+    //第三步，分组取TopN算法实现，获取每个品类的top10活跃用户
+    val top10CategorySessionCountsRDD = top10CategorySessionCountRDD.groupByKey()
+    val top10SessionRDD = top10CategorySessionCountsRDD.mapPartitions{x=>{
+      var result = List[(String,String)]()
+      while(x.hasNext){
+        val tmp = x.next()
+        val categoryid = tmp._1
+        val iterator = tmp._2.iterator
+
+        //定义去topn的排序数组
+        var top10Session = List[String]()
+        while(iterator.hasNext){
+          val sessionCount = iterator.next()
+          val count = sessionCount.split(",")(1).toLong
+
+          for (i <- top10Session.indices){
+            if(top10Session(i) == null){
+              top10Session(i) = sessionCount
+            }else{
+              val _count = top10Session(i).split(",")(1).toLong
+              if(count > _count){
+                for(j <- 9 to i){
+                  top10Session(j) = top10Session(j-1)
+                }
+                top10Session(i) = sessionCount
+              }
+            }
+          }
+        }
+
+        //将数据写入MySql中
+        for(sessionCount <- top10Session){
+          if(sessionCount != null){
+            val sessionid = sessionCount.split(",")(0)
+            val count = sessionCount.split(",")(1).toLong
+            val top10Session = new TopTenSession
+            top10Session.setTaskid(taskid)
+            top10Session.setCategoryid(categoryid)
+            top10Session.setSessionid(sessionid)
+            top10Session.setClickCount(count)
+
+            val top10SessionDAO = DaoFactory.getTop10SessionDAO
+            top10SessionDAO.insert(top10Session)
+
+            result::=(sessionid,sessionid)
+          }
+        }
+      }
+      result.iterator
+    }}
+
+    //第四步，获取top10活跃session的明细数据，并写入MySql
+    val sessionDetailRDD = top10SessionRDD.join(sessionIdToDetailRDD)
+    sessionDetailRDD.foreach{x=>
+      val row = x._2._2
+      val sessionDetail = new SessionDetail
+      sessionDetail.setTaskid(taskid)
+      sessionDetail.setUserid(row.getLong(1))
+      sessionDetail.setSessionid(row.getString(2))
+      sessionDetail.setPageid(row.getLong(3))
+      sessionDetail.setActionTime(row.getString(4))
+      sessionDetail.setSearchKeyword(row.getString(5))
+      sessionDetail.setClickCategoryId(row.getLong(6))
+      sessionDetail.setClickProductId(row.getLong(7))
+      sessionDetail.setOrderCategoryIds(row.getString(8))
+      sessionDetail.setOrderProductIds(row.getString(9))
+      sessionDetail.setPayCategoryIds(row.getString(10))
+      sessionDetail.setPayProductIds(row.getString(11))
+
+      val sessionDetailDAO = DaoFactory.getSessionDetailDAO
+      sessionDetailDAO.insert(sessionDetail)
+    }
   }
 
 }
