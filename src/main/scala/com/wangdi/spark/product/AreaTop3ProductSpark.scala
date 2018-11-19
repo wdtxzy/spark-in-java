@@ -53,7 +53,15 @@ object AreaTop3ProductSpark {
     // 从MySQL中查询城市信息，技术点2：异构数据源之MySQL的使用
     val cityIdToCityInfoRDD = getCityidToCityInfoRDD(sqlContext)
     //生成点击商品基础信息临时表,将RDD转换为DataFrame，并注册临时表
-
+    generateTempClickProductBasicTable(sqlContext,cityidToclickActionRDD,cityIdToCityInfoRDD)
+    //生成各区域各商品点击次数的临时表
+    generateTempAreaProductClickCountTable(sqlContext)
+    //生成包含完整商品信息的各区域各商品点击次数的临时表
+    generateTempAreaFullProductClickCountTable(sqlContext)
+    //使用开窗函数获取各个区域内点击次数排名前3的热门商品
+    val areaTop3ProdctRDD = getAreaTop3ProductRDD(sqlContext)
+    val rows = areaTop3ProdctRDD.collect()
+    persistAreaTop3Product(taskId,rows)
   }
 
   /**
@@ -106,6 +114,12 @@ object AreaTop3ProductSpark {
     }
   }
 
+  /**
+    * 生成点击商品基础信息临时表
+    * @param sqlContext
+    * @param cityIdToClickActionRDD
+    * @param cityIdToCityInfoRDD
+    */
   private def generateTempClickProductBasicTable(sqlContext:SQLContext,
                                                  cityIdToClickActionRDD:RDD[(Long,Row)],
                                                  cityIdToCityInfoRDD:RDD[(Long,Row)])={
@@ -133,5 +147,57 @@ object AreaTop3ProductSpark {
     df.createOrReplaceTempView("tmp_click_product_basic")
   }
 
+  /**
+    * 生成各区域商品点击次数临时表
+    * @param sqlContext
+    */
+  private def generateTempAreaProductClickCountTable(sqlContext:SQLContext)={
+    val sql = "SELECT area, product_id,ccount(*) click_count,"+
+    "group_concat_distinct(concat_long_string(city_id,city_name,':')) city_infos"+
+    "FROM tmp_click_product_basic GROUP BY area,product_id"
 
+    val df = sqlContext.sql(sql)
+    df.createOrReplaceTempView("tmp_area_product_click_count")
+  }
+
+  /**
+    * 生成区域商品点击次数临时表
+    * @param sqlContext
+    */
+  private def generateTempAreaFullProductClickCountTable(sqlContext:SQLContext)={
+    //技术点：内置if函数
+    val sql = "SELECT tapcc_area,tapcc.product_id,tapcc.click_count,tapcc.city_infos,"+
+    "pi.product_name, if(get_json_object(pi.extend_info,'product_status')='0','self','Third Party')"+
+    "product_status FROM tmp_area_product_click_count tapcc JOIN product_info pi"+
+    "On tapcc.product_id = pi.product_id"
+
+    val df = sqlContext.sql(sql)
+    df.createOrReplaceTempView("tmp_area_fullprod_click_count")
+  }
+
+  /**
+    * 获取各区域top3热门商品
+    * @param sqlContext
+    * @return
+    */
+  private def getAreaTop3ProductRDD(sqlContext:SQLContext):RDD[Row]={
+    //技术点：开窗函数
+    val sql = "SELECT area, "+
+      "CASE WHEN area = 'China North' OR area='China East' THEN 'A Leval'"+
+        "WHEN area = 'China South' OR area='China Middle' THEN 'B Leval'"+
+        "WHEN area = 'West North' OR area='West East' THEN 'C Leval'" +
+    "ELSE 'D Level' END area_level, product_id, click_count, city_infos,"+
+    "product_name, product_status"+
+    "FROM (SELECT area, product_id, click_count, city_infos, product_name,"+
+    "product_status, row_number() OVER (PARTITION BY area ORDER BY click_count DESC) rank"+
+    "FROM tmp_area_fullprod_click_count) t WHERE rank<=3"
+
+    val df = sqlContext.sql(sql)
+    df.rdd
+  }
+
+  private def persistAreaTop3Product(taskid:Long,rows:Array[Row])={
+
+    val areaTop3Product = new util.ArrayList[AreaTop3Product]()
+  }
 }
