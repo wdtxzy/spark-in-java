@@ -13,10 +13,9 @@ import com.wangdi.util._
 import org.apache.parquet.it.unimi.dsi.fastutil.ints.{IntArrayList, IntList}
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{Accumulator, SparkConf, SparkContext}
+import org.apache.spark.{Accumulator, SparkConf}
 
 import scala.collection.mutable
 import scala.util.Random
@@ -31,10 +30,10 @@ object UserVisitSessionAnalyzeSpark {
     //构建spark上下文
     val conf = new SparkConf().setAppName(Constants.SPARK_APP_NAME_SESSION).setMaster("local")
     val sc = new JavaSparkContext(conf)
-    val sqlContext = getSQLContext(sc.sc)
+    val sqlContext = SparkUtils.getSQLContext(sc)
 
     //生成模拟数据
-    mockData(sc, sqlContext)
+    SparkUtils.mockData(sc, sqlContext)
 
     //创建DAO工厂
     val taskDao = DaoFactory.getTaskDAO
@@ -68,19 +67,6 @@ object UserVisitSessionAnalyzeSpark {
     getTop10Session(sc,task.getTaskid,top10CategoryList,sessionidToDetailRDD)
     //关闭spark上下文
     sc.close()
-  }
-
-  //获取SQLContext
-  private def getSQLContext(sc: SparkContext) = {
-    val local = ConfigurationManager.getBoolean(Constants.SPARK_LOCAL)
-    if (local) new SQLContext(sc)
-    else new HiveContext(sc)
-  }
-
-  //生成模拟数据（只有本地模式，才会去生成模拟数据）
-  private def mockData(sc: JavaSparkContext, sqlContext: SQLContext): Unit = {
-    val local = ConfigurationManager.getBoolean(Constants.SPARK_LOCAL)
-    if (local) MockData.mock(sc, sqlContext)
   }
 
   private def getSessionForKey[T](iterator: Iterator[Row]): Iterator[(String, Row)] = {
