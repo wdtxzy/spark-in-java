@@ -127,15 +127,14 @@ object AreaTop3ProductSpark {
                                                  cityIdToCityInfoRDD:RDD[(Long,Row)])={
     val joinRDD = cityIdToClickActionRDD.join(cityIdToCityInfoRDD)
     val mapRDD= joinRDD.map{x=>
-      val cityid = x._1
+      val cityid = x._1.toString
       val clickAction = x._2._1
       val cityInfo = x._2._2
-
-      val productId = clickAction.getLong(1)
+      val productId = clickAction.getLong(1).toString
       val cityName = cityInfo.getString(1)
       val area = cityInfo.getString(2)
 
-      RowFactory.create(cityid,cityName,area,productId)
+     RowFactory.create(cityid,cityName,area,productId)
     }
     val structFields = new util.ArrayList[StructField]()
     structFields.add(DataTypes.createStructField("city_id", DataTypes.LongType, true))

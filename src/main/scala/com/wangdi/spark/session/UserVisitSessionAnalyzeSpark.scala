@@ -765,7 +765,7 @@ object UserVisitSessionAnalyzeSpark {
         val iterator = tmp._2.iterator
 
         //定义去topn的排序数组
-        var top10Session = List[String]()
+        var top10Session = Array[String]()
         while(iterator.hasNext){
           val sessionCount = iterator.next()
           val count = sessionCount.split(",")(1).toLong
