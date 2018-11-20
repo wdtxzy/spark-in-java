@@ -6,6 +6,7 @@ import com.alibaba.fastjson.JSON
 import com.wangdi.SparkUtils
 import com.wangdi.conf.ConfigurationManager
 import com.wangdi.dao.DaoFactory
+import com.wangdi.model.AreaTop3Product
 import com.wangdi.util.{Constants, ParamUtils}
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.rdd.RDD
@@ -62,6 +63,7 @@ object AreaTop3ProductSpark {
     val areaTop3ProdctRDD = getAreaTop3ProductRDD(sqlContext)
     val rows = areaTop3ProdctRDD.collect()
     persistAreaTop3Product(taskId,rows)
+    sc.close()
   }
 
   /**
@@ -198,6 +200,21 @@ object AreaTop3ProductSpark {
 
   private def persistAreaTop3Product(taskid:Long,rows:Array[Row])={
 
-    val areaTop3Product = new util.ArrayList[AreaTop3Product]()
+    val areaTop3Products = new util.ArrayList[AreaTop3Product]()
+    for(row <- rows){
+      val areaTop3Product = new AreaTop3Product()
+      areaTop3Product.setTaskid(taskid)
+      areaTop3Product.setArea(row.getString(0))
+      areaTop3Product.setAreaLevel(row.getString(1))
+      areaTop3Product.setProductid(row.getLong(2))
+      areaTop3Product.setClickCount(row.get(3).toString.toLong)
+      areaTop3Product.setCityInfos(row.getString(4))
+      areaTop3Product.setProductName(row.getString(5))
+      areaTop3Product.setProductStatus(row.getString(6))
+      areaTop3Products.add(areaTop3Product)
+    }
+
+    val areaTop3ProductDao = DaoFactory.getAreaTop3ProductDao
+    areaTop3ProductDao.insertBatch(areaTop3Products)
   }
 }

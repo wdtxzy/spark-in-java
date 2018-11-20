@@ -32,4 +32,8 @@ public class DaoFactory {
     public static TopTenSessionDao getTop10SessionDAO() {
         return new TopTenSeesionDaoImpl();
     }
+
+    public static AreaTop3ProductDao getAreaTop3ProductDao(){return new AreaTop3ProductDaoImp();}
+
+    public static PageSplitConvertRateDao getPageSplictConvertRatDao(){return new PageSplitConvertRateDaoImp();}
 }
