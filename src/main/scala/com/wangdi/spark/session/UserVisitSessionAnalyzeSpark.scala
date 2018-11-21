@@ -365,7 +365,7 @@ object UserVisitSessionAnalyzeSpark {
           //使用广播变量的时候,直接调用广播变量（Broadcast类型）的value() / getValue()
           val dateHourExtractMap = dateHourExtractMapBroadcast.value
           val extractIndexList = dateHourExtractMap(date)(hour)
-          val sessionRandomExtractDAO = DaoFactory.getSessionRandomExtractDAO
+          val sessionRandomExtractDAO = DaoFactory.getSessionRandomExtractDao
           var index = 0
           iterator.foreach { y =>
             val sessionAggrInfo = y
@@ -412,7 +412,7 @@ object UserVisitSessionAnalyzeSpark {
 
         sessionDetails.add(sessionDetail)
       }
-      val sessionDetailDao = DaoFactory.getSessionDetailDAO
+      val sessionDetailDao = DaoFactory.getSessionDetailDao
       sessionDetailDao.insertBatch(sessionDetails)
 
     }
@@ -482,7 +482,7 @@ object UserVisitSessionAnalyzeSpark {
     sessionAggrStat.setStep_length_60_ratio(step_length_60_ratio)
 
     // 调用对应的DAO插入统计结果
-    val sessionAggrStatDAO = DaoFactory.getSessionAggrStatDAO
+    val sessionAggrStatDAO = DaoFactory.getSessionAggrStatDao
     sessionAggrStatDAO.insert(sessionAggrStat)
   }
 
@@ -544,7 +544,7 @@ object UserVisitSessionAnalyzeSpark {
     }
 
     //第六步，用take（10）取出top10热门品类，写入MySql
-    val top10CategoryDao = DaoFactory.getTop10CategoryDAO
+    val top10CategoryDao = DaoFactory.getTop10CategoryDao
     val top10CategoryList = sortKeyToCountRDD.take(10)
     for(i<- top10CategoryList.indices){
       val x = top10CategoryList(i)
@@ -796,7 +796,7 @@ object UserVisitSessionAnalyzeSpark {
             top10Session.setSessionid(sessionid)
             top10Session.setClickCount(count)
 
-            val top10SessionDAO = DaoFactory.getTop10SessionDAO
+            val top10SessionDAO = DaoFactory.getTop10SessionDao
             top10SessionDAO.insert(top10Session)
 
             result::=(sessionid,sessionid)
@@ -824,7 +824,7 @@ object UserVisitSessionAnalyzeSpark {
       sessionDetail.setPayCategoryIds(row.getString(10))
       sessionDetail.setPayProductIds(row.getString(11))
 
-      val sessionDetailDAO = DaoFactory.getSessionDetailDAO
+      val sessionDetailDAO = DaoFactory.getSessionDetailDao
       sessionDetailDAO.insert(sessionDetail)
     }
   }
