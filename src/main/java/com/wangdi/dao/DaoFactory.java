@@ -13,27 +13,27 @@ public class DaoFactory {
         return new TaskDaoImpl();
     }
 
-    public static SessionAggrStatDao getSessionAggrStatDAO() {
+    public static SessionAggrStatDao getSessionAggrStatDao() {
         return new SessionAggrStatDaoImpl();
     }
 
-    public static SessionRandomExtractDao getSessionRandomExtractDAO() {
+    public static SessionRandomExtractDao getSessionRandomExtractDao() {
         return new SessionRandomExtractDaoImpl();
     }
 
-    public static SessionDetailDao getSessionDetailDAO() {
+    public static SessionDetailDao getSessionDetailDao() {
         return new SessionDetailDaoImpl();
     }
 
-    public static TopTenCategoryDao getTop10CategoryDAO() {
+    public static TopTenCategoryDao getTop10CategoryDao() {
         return new TopTenCategoryDaoImpl();
     }
 
-    public static TopTenSessionDao getTop10SessionDAO() {
+    public static TopTenSessionDao getTop10SessionDao() {
         return new TopTenSeesionDaoImpl();
     }
 
     public static AreaTop3ProductDao getAreaTop3ProductDao(){return new AreaTop3ProductDaoImp();}
 
-    public static PageSplitConvertRateDao getPageSplictConvertRatDao(){return new PageSplitConvertRateDaoImp();}
+    public static PageSplitConvertRateDao getPageSplitConvertRateDao(){return new PageSplitConvertRateDaoImp();}
 }

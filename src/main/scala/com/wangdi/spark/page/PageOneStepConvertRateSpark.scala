@@ -4,11 +4,14 @@ import util.control.Breaks._
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.wangdi.SparkUtils
 import com.wangdi.dao.DaoFactory
-import com.wangdi.util.{Constants, DateUtils, ParamUtils}
+import com.wangdi.model.PageSplitConvertRate
+import com.wangdi.util.{Constants, DateUtils, NumberUtils, ParamUtils}
 import org.apache.spark.SparkConf
 import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+
+import scala.collection.mutable
 
 
 /**
@@ -93,10 +96,74 @@ object PageOneStepConvertRateSpark {
     }}
   }
 
-  private def generateAndMatchPageSplit(sessionidToactionsRDD:RDD[(String,Iterable[Row])],
-                                        taskParam:JSONObject):RDD[(String,Int)]={
+  /**
+    * 获取页面流中初始页面的pv
+    * @param sessionidToactionsRDD
+    * @param taskParam
+    * @return
+    */
+  private def getStartPagePv(sessionidToactionsRDD:RDD[(String,Iterable[Row])],
+                                        taskParam:JSONObject):Long={
     val targetPageFlow = ParamUtils.getParam(taskParam,Constants.PARAM_TARGET_PAGE_FLOW)
     val startPageId = targetPageFlow.split(",")(0).toLong
+    val startPageRDD = sessionidToactionsRDD.mapPartitions{x=>{
+      var list = List[Long]()
+      while (x.hasNext){
+        val tmp = x.next()
+        val iterator = tmp._2.iterator
+        while (iterator.hasNext){
+          val row = iterator.next()
+          val pageid = row.getLong(3)
+          if(pageid == startPageId){
+            list ::= pageid
+          }
+        }
+      }
+      list.iterator}}
+    startPageRDD.count()
+  }
 
+  /**
+    * 计算页面切片转化率
+    * @param taskParam
+    * @param pageSplitPvMap 页面切片pv
+    * @param startPagePv 起始页面pv
+    * @return
+    */
+  private def computePageSplitConvertRate(taskParam:JSONObject,
+                                          pageSplitPvMap:Map[String,Object],
+                                          startPagePv:Long):mutable.HashMap[String,Double]={
+    val targetPages = ParamUtils.getParam(taskParam, Constants.PARAM_TARGET_PAGE_FLOW).split(",")
+    val convertRateMap = mutable.HashMap[String,Double]()
+    var lastPageSplitPv = 0L
+    for(i <- targetPages.indices){
+      val targetPageSplit = targetPages(i-1)+"_"+targetPages(i)
+      val targetPageSplitPv = pageSplitPvMap.get(targetPageSplit).toString.toLong
+      var convertRate = if(i==1){
+        NumberUtils.formatDouble(targetPageSplitPv.toDouble / startPagePv.toDouble, 2)
+      }else{
+        NumberUtils.formatDouble(targetPageSplitPv.toDouble / lastPageSplitPv.toDouble, 2)
+      }
+      convertRateMap+=(targetPageSplit->convertRate)
+      lastPageSplitPv = targetPageSplitPv
+    }
+    convertRateMap
+  }
+
+  private def persistConvertRate(taskid:Long,
+                                 convertRateMap:mutable.HashMap[String,Double])={
+    val buffer = new StringBuffer()
+    for((key,value) <- convertRateMap){
+      buffer.append(key+"="+value+"|")
+    }
+    var convertRate = buffer.toString
+    convertRate = convertRate.substring(0, convertRate.length - 1)
+
+    val pageSplitConvertRate = new PageSplitConvertRate
+    pageSplitConvertRate.setTaskid(taskid)
+    pageSplitConvertRate.setConvertRate(convertRate)
+
+    val pageSplitConvertRateDAO = DaoFactory.getPageSplitConvertRateDao
+    pageSplitConvertRateDAO.insert(pageSplitConvertRate)
   }
 }
